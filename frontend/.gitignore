@@ -1,0 +1,48 @@
+# Dependências
+node_modules/
+
+# Saída de build / produção
+dist/
+build/
+out/
+.next/
+.vite/
+.svelte-kit/
+.parcel-cache/
+
+# Arquivos de ambiente (não versionar segredos)
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+logs/
+
+# Cache, cobertura e artefatos de teste
+.cache/
+coverage/
+.nyc_output/
+jest-junit.xml
+*.snap
+
+# Arquivos temporários do TypeScript / bundlers
+*.tsbuildinfo
+*.lock-wscript
+
+# Arquivos do sistema e editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln
+*.swp
+
+# Outros
+*.tmp
+*.log

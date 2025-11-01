@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:15
+    container_name: memory_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-memory_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memory_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-memory_game}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - memory_network
+
+  backend:
+    build: ./backend
+    container_name: memory_backend
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://memory_user:memory_pass@db:5432/memory_game}
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+      NODE_ENV: production
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - memory_network
+
+  frontend:
+    build: ./frontend
+    container_name: memory_frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8080}
+    ports:
+      - "5173:5173"
+    networks:
+      - memory_network
+
+networks:
+  memory_network:
+
+volumes:
+  pgdata:
