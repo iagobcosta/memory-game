@@ -83,6 +83,8 @@ export default function Game() {
   }
 
   function resetGame() {
+    // clear any existing timer and start a fresh one
+    try { clearInterval(timerRef.current) } catch (_) {}
     const pairs = EMOJIS.slice(0,6)
     const deck = shuffle([...pairs, ...pairs]).map((emoji, idx) => ({ id: idx, emoji }))
     setCards(deck)
@@ -92,6 +94,7 @@ export default function Game() {
     setTime(0)
     setInitialReveal(true)
     setTimeout(() => setInitialReveal(false), 1500)
+    timerRef.current = setInterval(() => setTime((t) => t + 1), 1000)
   }
 
   function handleCloseModal() {
