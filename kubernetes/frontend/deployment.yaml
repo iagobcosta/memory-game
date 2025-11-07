@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: memory-frontend
+  template:
+    metadata:
+      labels:
+        app: memory-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: memory-frontend:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5173
+          envFrom:
+            - configMapRef:
+                name: frontend-config
