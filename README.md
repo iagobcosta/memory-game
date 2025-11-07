@@ -1,242 +1,118 @@
-## Detalhes da API (Backend)
+# Kubernetes deployment (kind)
 
-O backend está disponível por padrão em `http://localhost:8080` (quando o Compose está rodando).
-Autenticação
-- Todas as rotas autenticadas exigem o header:
+Este guia descreve como executar o projeto `memory-game` em um cluster Kubernetes local usando **kind**.
 
-  Authorization: Bearer <accessToken>
-- O fluxo de autenticação usa access tokens (curta duração) e refresh tokens (rotacionados e persistidos no banco).
+## Estrutura criada
 
-Endpoints principais
-- POST /register
-  - Descrição: cria um novo jogador.
-  - Payload: { name: string, email: string, password: string }
-- POST /login
-  - Descrição: autentica e retorna tokens.
-  - Payload: { email: string, password: string }
-- POST /refresh
-  - Descrição: troca (rotate) o refresh token por um novo refresh + access token.
-  - Payload: { refreshToken: string }
-- POST /logout
-  - Descrição: revoga um refresh token (ou, quando chamado autenticado sem body, revoga todos do usuário).
-  - Payload opcional: { refreshToken: string }
-- GET /me
-  - Descrição: retorna informações do jogador autenticado.
-  - Retorno: { id, name, email }
-- POST /game/save
-  - Descrição: salva um jogo completado para o jogador autenticado.
-  - Payload (exemplo): { moves: number, time_elapsed: number, score: number, level?: string }
-- GET /ranking
-  - Descrição: retorna ranking agregado por jogador (top score e melhor tempo).
-
-Exemplos (curl)
-Registrar e logar:
-
-```bash
-curl -s -X POST http://localhost:8080/register \
-curl -s -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"password123"}' | jq
-Salvar um jogo (exemplo):
-
-```bash
-ACCESS_TOKEN=<access token aqui>
-curl -s -X POST http://localhost:8080/game/save \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-Observações
-- As seeds inicializam dois usuários de teste: `alice@example.com` / `password123` e `bob@example.com` / `secret456`.
-- Verifique `backend/.env.example` para variáveis de ambiente relevantes (DB, JWT secret, etc.).
-
-## Como contribuir
-Por favor, siga estes passos para contribuir com o projeto:
-
-1. Fork do repositório e clone para sua máquina.
-
-2. Crie uma branch para sua feature/bugfix:
-```bash
-git checkout -b feat/minha-feature
+```
+kubernetes/
+  kind/cluster.yaml
+  frontend/{namespace.yaml,configmap.yaml,deployment.yaml,service.yaml}
+  backend/{namespace.yaml,configmap.yaml,deployment.yaml,service.yaml}
+  database/{namespace.yaml,configmap.yaml,pv.yaml,pvc.yaml,deployment.yaml,service.yaml}
 ```
 
-3. Instale dependências e rode localmente (opcional - backend):
-```bash
-cd backend
-npm install
-npm run migrate
-npm run seed
-npm run dev
-```
+## Pré-requisitos
 
-4. Faça commits pequenos e descritivos. Exemplo de convenção simples:
-```
-feat: adicionar endpoint de exemplo
-fix: corrigir validação do login
-docs: atualizar README
-```
+- Docker instalado
+- Kind instalado (`brew install kind`)
+- kubectl instalado (`brew install kubectl`)
 
-5. Abra um Pull Request contra a branch `main` do repositório original. No PR, descreva a mudança, como testá-la e inclua capturas de tela se houver alteração visual.
-
-6. Após revisão, ajustes e aprovação, faremos o merge.
-
-Observações para mantenedores
-- Execute as migrations e seeds antes de revisar alterações que dependam do esquema do banco.
-- Se adicionar novas variáveis de ambiente, atualize `backend/.env.example`.
-
-## Release / Publicação de imagem Docker (CI/CD)
-Ao criar uma release/tag o workflow de CI irá construir e publicar uma imagem Docker no Docker Hub.
-
-Onde está a workflow
-- O workflow do GitHub Actions está em `backend/.github/workflows/docker-publish.yml`.
-
-Secrets necessários no repositório (GitHub Settings → Secrets):
-- `DOCKERHUB_USERNAME` — seu usuário no Docker Hub.
-- `DOCKERHUB_TOKEN` — token (ou senha) do Docker Hub. Recomenda-se criar um Access Token.
-- `DOCKERHUB_REPO` — (opcional) nome completo do repositório, por exemplo `meuuser/memory-backend`. Se omitido, o workflow usa `DOCKERHUB_USERNAME/memory-backend`.
-
-Como criar uma release / tag que dispara o publish
-1. Atualize a versão do backend em `backend/package.json` (por exemplo, "version": "1.0.1").
-
-2. Commit e crie uma tag com o prefixo `v` (o workflow reage a tags `v*`):
+## 1. Criar cluster kind
 
 ```bash
-git add backend/package.json
-git commit -m "chore(release): 1.0.1"
-git tag v1.0.1
-git push origin main
-git push origin v1.0.1
+kind create cluster --name memory-cluster --config kubernetes/kind/cluster.yaml
 ```
 
-3. O GitHub Actions irá rodar o workflow `backend/.github/workflows/docker-publish.yml`, que irá:
-  - ler a versão em `backend/package.json` (fallback para usar `DOCKERHUB_REPO` ou `DOCKERHUB_USERNAME/memory-backend` como nome de imagem),
-  - construir a imagem multi-arch,
-  - publicar tags: `<image>:<version>`, `<image>:latest` e `<image>:<short-sha>`.
+## 2. Build das imagens locais
 
-Alternativa: você pode disparar manualmente o workflow via GitHub Actions UI (workflow_dispatch).
-
-Como testar a imagem publicada (após o workflow completar):
+Execute os builds das imagens usando os Dockerfiles existentes e marque-as com a tag `:local`.
 
 ```bash
-docker pull <your-docker-repo>:1.0.1
-docker run -e DATABASE_URL=... -p 8080:8080 <your-docker-repo>:1.0.1
+# Backend
+docker build -t memory-backend:local ./backend
+# Frontend
+docker build -t memory-frontend:local ./frontend
 ```
 
-Substitua `<your-docker-repo>` pelo valor de `DOCKERHUB_REPO` ou `DOCKERHUB_USERNAME/memory-backend`.
+## 3. Carregar imagens no cluster kind
 
----
-
-Se quiser, eu posso também:
-- Atualizar o workflow para usar diretamente a tag git (ao invés de `backend/package.json`) para decidir a versão do build.
-- Adicionar um badge no README com a imagem e a última tag publicada.
-
-Ficou claro? Quer que eu já atualize o README do `backend/README.md` também com um resumo mais técnico (variáveis de ambiente, comandos para migrar, etc.)?
-# Memory Game (React + Fastify + PostgreSQL) — Docker Compose
-
-This repository contains a Memory Game full-stack example (frontend React + Vite + Tailwind, backend Node.js + Fastify, PostgreSQL) meant to run with Docker Compose.
-
-Quick overview
-- Backend: Fastify, Knex, PostgreSQL, JWT auth (access + refresh tokens, refresh token rotation persisted to DB).
-- Frontend: Vite + React + Tailwind, axios with automatic token refresh, protected routes and simple memory game UI.
-- DB: PostgreSQL; migrations and seeds run on container startup.
-
-Prerequisites
-- Docker & Docker Compose installed
-
-Run with Docker Compose (recommended)
-
-1. From the project root, build and start all services:
+Kind não puxa imagens locais automaticamente, então é necessário carregar:
 
 ```bash
-docker compose up --build -d
+kind load docker-image memory-backend:local --name memory-cluster
+kind load docker-image memory-frontend:local --name memory-cluster
 ```
 
-2. Confirm services are running:
+## 4. Aplicar manifestos
+
+Aplicar cada conjunto de manifestos. A ordem recomendada é: namespaces, database, backend, frontend.
 
 ```bash
-docker compose ps
+kubectl apply -f kubernetes/database/namespace.yaml
+kubectl apply -f kubernetes/database/pv.yaml
+kubectl apply -f kubernetes/database/pvc.yaml
+kubectl apply -f kubernetes/database/configmap.yaml
+kubectl apply -f kubernetes/database/deployment.yaml
+kubectl apply -f kubernetes/database/service.yaml
+
+kubectl apply -f kubernetes/backend/namespace.yaml
+kubectl apply -f kubernetes/backend/configmap.yaml
+kubectl apply -f kubernetes/backend/deployment.yaml
+kubectl apply -f kubernetes/backend/service.yaml
+
+kubectl apply -f kubernetes/frontend/namespace.yaml
+kubectl apply -f kubernetes/frontend/configmap.yaml
+kubectl apply -f kubernetes/frontend/deployment.yaml
+kubectl apply -f kubernetes/frontend/service.yaml
 ```
 
-3. Backend API will be available at http://localhost:8080
-4. Frontend will be available at http://localhost:5173
-
-Environment & configuration
-- The backend reads configuration from environment variables; the development default values are in `backend/.env.example`. When running with Docker Compose, the compose file sets sensible defaults.
-
-API (basic)
-- POST /register — register a new player (name, email, password)
-- POST /login — login and receive { accessToken, refreshToken }
-- POST /refresh — rotate refresh token and return new accessToken
-- POST /logout — revoke refresh token
-- GET /me — fetch authenticated player info
-- POST /game/save — save completed game (authenticated)
-- GET /ranking — global ranking by score
-
-Testing flows
-- You can register a new account via the frontend or via curl to the backend.
-
-Example — register then login (curl):
+## 5. Verificar recursos
 
 ```bash
-curl -s -X POST http://localhost:8080/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@example.com","password":"secret"}'
-
-curl -s -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.com","password":"secret"}' | jq
+kubectl get pods -A
+kubectl get svc -A
 ```
 
-Notes and next steps
-- For production, consider storing refresh tokens in HttpOnly secure cookies instead of localStorage.
-- Add automated tests (integration + unit) and CI pipeline.
+## 6. Acesso ao Serviço
 
-If you'd like, I can:
-- Rebuild and verify the Docker Compose services now and share the container status/logs.
-- Add more API examples or curl snippets for each endpoint.
-
---
-Generated README (concise). If you want a more detailed README with architecture diagrams, environment variable docs, or deployment notes, tell me which sections to expand.
-# Memory Game (Jogo da Memória)
-
-Projeto fullstack: frontend React + Vite + Tailwind, backend Node.js + Fastify + Knex e PostgreSQL. Tudo orquestrado com Docker Compose.
-
-Endpoints principais:
-- POST /register
-- POST /login
-- POST /refresh
-- GET /me
-- POST /game/save
-- GET /ranking
-
-Ports:
-- Frontend: 5173
-- Backend: 8080
-- Postgres: 5432
-
-Como rodar:
-
-1. Copie variáveis para `.env` (veja `backend/.env.example`).
-2. Execute:
+Executar port-forward frontend:
 
 ```bash
-docker compose up --build
+kubectl -n frontend port-forward svc/frontend-svc 5173:5173
+# Acessar em http://localhost:5173
 ```
 
-Abra `http://localhost:5173` para usar o jogo.
-
-Notas importantes:
-- O backend aplica migrações e seeds automaticamente ao iniciar (via `entrypoint.sh`). As seeds criam dois usuários de teste: `alice@example.com` / `password123` e `bob@example.com` / `secret456`.
-- O sistema usa refresh tokens persistidos no banco. Ao fazer login, o `refreshToken` é salvo no banco e pode ser revogado via `POST /logout`.
-
-Comandos úteis:
+Executar port-forward backend:
 
 ```bash
-# Parar e remover containers (preserva volume pgdata):
-docker compose down
-
-# Subir em foreground e ver logs:
-docker compose up --build
-
-# Subir em background:
-docker compose up --build -d
-docker compose logs -f memory_backend
+kubectl -n backend port-forward svc/backend-svc 8080:8080
+curl http://localhost:8080/
 ```
+
+## 7. Logs e Debug
+
+```bash
+kubectl -n backend logs -l app=memory-backend -f
+kubectl -n frontend logs -l app=memory-frontend -f
+kubectl -n database logs -l app=postgres -f
+```
+
+## 8. Remover cluster
+
+```bash
+kind delete cluster --name memory-cluster
+```
+
+## Observações
+
+- O PV usa `hostPath` para simplicidade (somente para ambiente local). Em produção, usar StorageClass dinâmica.
+- As variáveis sensíveis (ex: JWT_SECRET, credenciais DB) estão em ConfigMap por simplicidade; em produção use Secrets.
+- O backend possui um initContainer que aguarda o Postgres estar pronto.
+
+## Próximos passos sugeridos
+
+- Migrar credenciais para Secrets.
+- Adicionar HorizontalPodAutoscaler.
+- Configurar Ingress para expor o frontend em vez de NodePort.
+- Adicionar Job/CronJob para rodar migrações em vez de entrypoint dentro do container.
