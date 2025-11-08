@@ -3,7 +3,7 @@
 ## 1. Criar cluster com 3 workers
 
 ```shell
-kind create cluster --name memory-game --config kind-config.yaml
+kind create cluster --name memory-game --config k8s/kind-config.yaml
 ```
 
 ## 2. Verificar nós
@@ -40,4 +40,20 @@ kubectl apply -f k8s/frontend-service.yaml
 
 ```shell
 kubectl get pods -n memory-game -o wide
+```
+
+## 6. Acesso ao Serviço
+
+Executar port-forward frontend:
+
+```bash
+kubectl -n frontend port-forward svc/frontend-svc 5173:5173
+# Acessar em http://localhost:5173
+```
+
+Executar port-forward backend:
+
+```bash
+kubectl -n backend port-forward svc/backend-svc 8080:8080
+curl http://localhost:8080/
 ```
