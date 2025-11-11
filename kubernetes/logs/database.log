@@ -1,0 +1,10 @@
+2025-11-10 23:59:56.284 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2025-11-10 23:59:56.286 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2025-11-10 23:59:56.287 UTC [32] LOG:  database system was shut down at 2025-11-10 23:59:33 UTC
+2025-11-10 23:59:56.290 UTC [1] LOG:  database system is ready to accept connections
+2025-11-11 00:00:10.826 UTC [36] ERROR:  column "token_hash" does not exist at character 36
+2025-11-11 00:00:10.826 UTC [36] STATEMENT:  delete from "refresh_tokens" where "token_hash" = $1
+2025-11-11 00:00:19.207 UTC [36] ERROR:  column "token_hash" of relation "refresh_tokens" does not exist at character 58
+2025-11-11 00:00:19.207 UTC [36] STATEMENT:  insert into "refresh_tokens" ("expires_at", "player_id", "token_hash") values ($1, $2, $3)
+2025-11-11 00:04:56.312 UTC [30] LOG:  checkpoint starting: time
+2025-11-11 00:04:56.536 UTC [30] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.212 s, sync=0.005 s, total=0.225 s; sync files=3, longest=0.004 s, average=0.002 s; distance=0 kB, estimate=0 kB
